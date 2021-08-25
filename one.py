@@ -15,7 +15,9 @@ cudatoolkit=10.2 -c pytorch
 
 pip install torchtext==0.9.0
 
-python -m spacy download en_core_web_sm python -m spacy download de_core_news_sm
+python -m spacy download en_core_web_sm 
+python -m spacy download de_core_news_sm
+may need to be download manually
 
 
 An embedding layer to map each word to its feature vector. (How exactly?)
@@ -84,9 +86,58 @@ def tokenize_en(text):
     Tokenizes English text from a string into a list of strings (tokens)
     """
     return [tok.text for tok in spacy_en.tokenizer(text)]
+# TODO: the fields in object 'tok' is needed. 
 
 en_text = 'I am Fool!'
 print(tokenize_en(en_text))
 
 # print('breaked.')
 pdb.set_trace()
+
+SRC = Field(tokenize=tokenize_de,
+            init_token = '<sos>',
+            eos_token = '<eos>',
+            lower = True)
+TRG = Field(tokenize=tokenize_en,
+            init_token = '<sos>',
+            eos_token = '<eos>',
+            lower = True)
+
+# download and load the train, validation and test data. Multi30k is used. This
+# is a dataset with ~30,000 parallel English, German and French sentences, each
+# with ~12 words per sentence.
+# extract the German and English Pair with the fields as SRC and TRG;
+train_data, valid_data, test_data = Multi30k.splits(exts = ('.de', '.en'), 
+                                                    fields = (SRC, TRG))
+print(f"Number of training examples: {len(train_data.examples)}")
+print(f"Number of validation examples: {len(valid_data.examples)}")
+print(f"Number of testing examples: {len(test_data.examples)}")
+
+# making sure the source sentence is reversed;
+print(vars(train_data.examples[0]))
+# whether <sos> <eos> should be counted.
+
+
+# Build the vocabulary of both language from train data. 
+
+# Using the min_freq argument, we only allow tokens that appear at least 2 times to appear in our
+# vocabulary. Tokens that appear only once are converted into an <unk> (unknown) token.
+SRC.build_vocab(train_data, min_freq = 2)
+TRG.build_vocab(train_data, min_freq = 2)
+print(f"Unique tokens in source (de) vocabulary: {len(SRC.vocab)}")
+print(f"Unique tokens in target (en) vocabulary: {len(TRG.vocab)}")
+
+
+# Final step of data prepare: create the data iterators. These can be iterated on to return a
+# batch of data which will have a 'src' attribute (the PyTorch tensors containing
+# a batch of numericalized 'source' sentences) and a 'trg' attribute (the PyTorch
+# tensors containing a batch of numericalized 'target' sentences). ##Numericalized##
+# is just a fancy way of saying they have been converted from a sequence of
+# readable tokens to a sequence of corresponding ##indexes##, using the vocabulary.
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+BATCH_SIZE = 128
+
+train_iterator, valid_iterator, test_iterator = BucketIterator.splits(
+    (train_data, valid_data, test_data), 
+    batch_size = BATCH_SIZE, 
+    device = device)
