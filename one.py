@@ -134,6 +134,7 @@ print(f"Unique tokens in target (en) vocabulary: {len(TRG.vocab)}")
 # tensors containing a batch of numericalized 'target' sentences). ##Numericalized##
 # is just a fancy way of saying they have been converted from a sequence of
 # readable tokens to a sequence of corresponding ##indexes##, using the vocabulary.
+# one-hot vector as word label?
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 BATCH_SIZE = 128
 
