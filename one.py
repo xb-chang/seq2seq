@@ -36,12 +36,14 @@ we compare it against our actual target sentence, $Y = \{ y_1, y_2, ..., y_T \}$
 We then use this loss to update all of the parameters in our model.
 '''
 
+from typing import Text
 import torch
-import torch.nn as nn
 import torch.optim as optim
 
 from torchtext.legacy.datasets import Multi30k
 from torchtext.legacy.data import Field, BucketIterator
+
+from LSTM_Models import Seq2Seq
 
 import spacy
 import numpy as np
@@ -86,13 +88,20 @@ def tokenize_en(text):
     Tokenizes English text from a string into a list of strings (tokens)
     """
     return [tok.text for tok in spacy_en.tokenizer(text)]
-# TODO: the fields in object 'tok' is needed. 
+
+# # TODO: the fields in object 'tok' is needed. 
+# def tokenize_fileds(text):
+#     for tok in spacy_en.tokenizer(text):
+#         # vars() 函数返回对象object的属性和属性值的字典对象。TypeError: vars()
+#         # argument must have __dict__ attribute
+#         print(vars(tok))
+#         pdb.set_trace()
+
+# tokenize_fileds(en_text)
 
 en_text = 'I am Fool!'
 print(tokenize_en(en_text))
 
-# print('breaked.')
-pdb.set_trace()
 
 SRC = Field(tokenize=tokenize_de,
             init_token = '<sos>',
@@ -114,9 +123,9 @@ print(f"Number of validation examples: {len(valid_data.examples)}")
 print(f"Number of testing examples: {len(test_data.examples)}")
 
 # making sure the source sentence is reversed;
+# vars() 函数返回对象object的属性和属性值的字典对象。
 print(vars(train_data.examples[0]))
-# whether <sos> <eos> should be counted.
-
+# whether <sos> <eos> should be counted. Nope
 
 # Build the vocabulary of both language from train data. 
 
@@ -138,7 +147,19 @@ print(f"Unique tokens in target (en) vocabulary: {len(TRG.vocab)}")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 BATCH_SIZE = 128
 
+# BucketIterator instead of the standard Iterator as it creates batches in such
+# a way that it minimizes the amount of padding in both the source and target
+# sentences. (NICE Property!!!!!)
 train_iterator, valid_iterator, test_iterator = BucketIterator.splits(
     (train_data, valid_data, test_data), 
     batch_size = BATCH_SIZE, 
     device = device)
+# The usage of 'torchtext' here is nice but too gigh level. Reverse the input
+# sequence order is considered in data preprocessing, as in 'tokenize_de'.
+
+
+# Building the Seq2Seq Model（LSTM Based）
+
+
+pdb.set_trace()
+
