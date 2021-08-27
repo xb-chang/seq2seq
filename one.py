@@ -38,12 +38,15 @@ We then use this loss to update all of the parameters in our model.
 
 from typing import Text
 import torch
+import torch.nn as nn
 import torch.optim as optim
 
 from torchtext.legacy.datasets import Multi30k
 from torchtext.legacy.data import Field, BucketIterator
 
-from LSTM_Models import Seq2Seq
+from LSTM_Models import Encoder,Decoder,Seq2Seq
+from LSTM_Models import train, evaluate
+from utils import init_weights, count_parameters, epoch_time
 
 import spacy
 import numpy as np
@@ -135,6 +138,7 @@ SRC.build_vocab(train_data, min_freq = 2)
 TRG.build_vocab(train_data, min_freq = 2)
 print(f"Unique tokens in source (de) vocabulary: {len(SRC.vocab)}")
 print(f"Unique tokens in target (en) vocabulary: {len(TRG.vocab)}")
+# pdb.set_trace()
 
 
 # Final step of data prepare: create the data iterators. These can be iterated on to return a
@@ -160,6 +164,67 @@ train_iterator, valid_iterator, test_iterator = BucketIterator.splits(
 
 # Building the Seq2Seq Model（LSTM Based）
 
+# Training the Seq2Seq Model. 
+# The embedding (vocabulary) sizes and dropout rates of
+# encoder and decoder can be different.
+INPUT_DIM = len(SRC.vocab)
+OUTPUT_DIM = len(TRG.vocab)
 
-pdb.set_trace()
+# Input feature dimension
+ENC_EMB_DIM = 256
+DEC_EMB_DIM = 256
+HID_DIM = 512
+N_LAYERS = 2
+ENC_DROPOUT = 0.5
+DEC_DROPOUT = 0.5
 
+enc = Encoder(INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT)
+dec = Decoder(OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT)
+model = Seq2Seq(enc, dec, device).to(device)
+
+model.apply(init_weights)
+print(f'The model has {count_parameters(model):,} trainable parameters')
+
+optimizer = optim.Adam(model.parameters())
+
+# CrossEntropyLoss 
+# Our loss function calculates the average loss per token,
+# however by passing the index of the <pad> token as the ignore_index argument
+# we ignore the loss whenever the target token is a padding token.
+# nice feature, how to build it?
+TRG_PAD_IDX = TRG.vocab.stoi[TRG.pad_token]
+criterion = nn.CrossEntropyLoss(ignore_index = TRG_PAD_IDX)
+
+# SRC_PAD_IDX = SRC.vocab.stoi[SRC.pad_token]
+# pdb.set_trace()
+
+N_EPOCHS = 10
+CLIP = 1
+
+best_valid_loss = float('inf')
+
+for epoch in range(N_EPOCHS):
+    
+    start_time = time.time()
+    
+    train_loss = train(model, train_iterator, optimizer, criterion, CLIP)
+    valid_loss = evaluate(model, valid_iterator, criterion)
+    
+    end_time = time.time()
+    
+    epoch_mins, epoch_secs = epoch_time(start_time, end_time)
+
+    if valid_loss < best_valid_loss:
+        best_valid_loss = valid_loss
+        torch.save(model.state_dict(), './models/tut1-model.pt')
+    
+    print(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
+    print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
+    print(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')
+    # pdb.set_trace()
+
+model.load_state_dict(torch.load('tut1-model.pt'))
+test_loss = evaluate(model, test_iterator, criterion)
+print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
+
+# pdb.set_trace()

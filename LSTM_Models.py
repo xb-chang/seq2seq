@@ -11,7 +11,7 @@ import random
 import pdb
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim, emb_dim, hid_dim, n_layers, bid=False, dropout=0.):
+    def __init__(self, input_dim, emb_dim, hid_dim, n_layers, dropout, bid=False):
         super().__init__()
         
         # input_dim: input vocab/embed size
@@ -56,7 +56,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, output_dim, emb_dim, hid_dim, n_layers, bid=False, dropout=0.):
+    def __init__(self, output_dim, emb_dim, hid_dim, n_layers, dropout, bid=False):
         super().__init__()
 
         #output_dim: output vocab/embed size
@@ -69,11 +69,12 @@ class Decoder(nn.Module):
         self.rnn = nn.LSTM(emb_dim, hid_dim, n_layers, bidirectional=bid, dropout=dropout)
 
         # predicting the output class
-        if not bid:
-            self.fc_out = nn.Linear(hid_dim, output_dim)
-        else:
+        if bid:
             # bidirectional, output features are 2*hid_dim
             self.fc_out = nn.Linear(hid_dim*2, output_dim)
+        else:
+            self.fc_out = nn.Linear(hid_dim, output_dim)
+
 
         self.dropout = nn.Dropout(dropout)
 
@@ -160,20 +161,25 @@ class Seq2Seq(nn.Module):
         # Init states and inputs for decoder
         #last hidden state of the encoder is used as the initial hidden state of the decoder
         hidden, cell = self.encoder(src)
-        #first input to the decoder is the <sos> tokens
-        input = trg[0,:]
+        
+        #first input to the Decoder is the <sos> tokens
+        input = trg[0]
+        # input = trg[0,:]
         # double check <sos> token if used
-        # why not input = trg[0] ?
-        pdb.set_trace()
+        # <sos> with idx 2
+        # pdb.set_trace()
 
         # Decoder: Auto-Regressive Way
         for t in range(1, trg_len):
+            # t starts at 1
+
             # insert input and states
             # get next outputs and states
             # output = [batch size, vocab size] (predict vectors)
             output, hidden, cell = self.decoder(input, hidden, cell)
 
             #place predictions in a tensor holding predict scores for each time step
+            # the first output stores at t=1;
             outputs[t] = output
             #get the highest predicted token from our predictions
             top1 = output.argmax(1) 
@@ -186,3 +192,69 @@ class Seq2Seq(nn.Module):
             input = trg[t] if teacher_force else top1
         
         return outputs
+
+
+# The outputs (predictions) saved at outputs[1] rather than outputs[0];
+# outputs[0] is always 0s, correspond to <sos> in TRG
+def train(model, iterator, optimizer, criterion, clip):
+    model.train()
+    epoch_loss = 0
+
+    for i, batch in enumerate(iterator):
+        src = batch.src
+        trg = batch.trg
+        # pdb.set_trace()
+
+        optimizer.zero_grad()
+
+        output = model(src, trg)
+        #trg = [trg len, batch size]
+        #output = [trg len, batch size, output dim]
+
+        output_dim = output.shape[-1]
+        # start from t=1 is the actual output
+        #trg = [(trg len - 1) * batch size]
+        #output = [(trg len - 1) * batch size, output dim]
+        # the first token in trg and output is dummy
+        # for classification
+        output = output[1:].view(-1, output_dim)
+        trg = trg[1:].view(-1)
+
+        loss = criterion(output, trg)
+
+        # backward
+        loss.backward()
+        # clip the gradient with gradient norm 'clip'
+        torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
+        optimizer.step()
+        
+        epoch_loss += loss.item()
+        
+    return epoch_loss / len(iterator)
+
+def evaluate(model, iterator, criterion):
+    model.eval()
+    epoch_loss = 0
+    
+    with torch.no_grad():
+        for i, batch in enumerate(iterator):
+            src = batch.src
+            trg = batch.trg
+
+            output = model(src, trg, 0) #turn off teacher forcing
+            #trg = [trg len, batch size]
+            #output = [trg len, batch size, output dim]
+            output_dim = output.shape[-1]
+            
+            output = output[1:].view(-1, output_dim)
+            trg = trg[1:].view(-1)
+            # the first token in trg and output is dummy
+            #trg = [(trg len - 1) * batch size]
+            #output = [(trg len - 1) * batch size, output dim]
+
+            loss = criterion(output, trg)
+            
+            epoch_loss += loss.item()
+        
+    return epoch_loss / len(iterator)
+
