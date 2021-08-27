@@ -223,7 +223,7 @@ for epoch in range(N_EPOCHS):
     print(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')
     # pdb.set_trace()
 
-model.load_state_dict(torch.load('tut1-model.pt'))
+model.load_state_dict(torch.load('./models/tut1-model.pt'))
 test_loss = evaluate(model, test_iterator, criterion)
 print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
