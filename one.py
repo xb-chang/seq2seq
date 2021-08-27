@@ -47,6 +47,7 @@ from torchtext.legacy.data import Field, BucketIterator
 from LSTM_Models import Encoder,Decoder,Seq2Seq
 from LSTM_Models import train, evaluate
 from utils import init_weights, count_parameters, epoch_time
+from utils import adj_tfr_lin_step, adj_tfr_lin, adj_tfr_exp
 
 import spacy
 import numpy as np
@@ -57,6 +58,12 @@ import time
 
 import pdb
 
+# tfr_sche = adj_tfr_lin_step(step_size=10, gamma=0.1)
+# tfr_sche = adj_tfr_lin(bound_step=50)
+tfr_sche = adj_tfr_exp(bound_step=100)
+for i in range(110):
+    print('{:.4f}'.format(tfr_sche.update()))
+pdb.set_trace()
 
 SEED = 1234
 

@@ -110,6 +110,7 @@ class Decoder(nn.Module):
         #input = [1, batch size]
         
         embedded = self.dropout(self.embedding(input))
+        # pdb.set_trace()
         #embedded = [1, batch size, emb dim]
 
         # one step prediction, output seq len is 1;
@@ -170,6 +171,7 @@ class Seq2Seq(nn.Module):
         # pdb.set_trace()
 
         # Decoder: Auto-Regressive Way
+        print('{}'.format(trg_len)) # varied temporal length
         for t in range(1, trg_len):
             # t starts at 1
 
@@ -183,6 +185,7 @@ class Seq2Seq(nn.Module):
             outputs[t] = output
             #get the highest predicted token from our predictions
             top1 = output.argmax(1) 
+            # pdb.set_trace()
 
             #decide if we are going to use teacher forcing or not
             teacher_force = random.random() < teacher_forcing_ratio
