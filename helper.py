@@ -5,6 +5,9 @@ Utilities from Pytorch Tutorial.
 import re
 from io import open
 import unicodedata
+import torch
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # representing each word in a language as a one-hot vector
 # Lang class with following data;
@@ -120,3 +123,20 @@ def prepareData(lang1, lang2, reverse=False):
     print(tar_lang.name, tar_lang.n_words)
 
     return src_lang, tar_lang, pairs
+
+def indexesFromSentence(lang, sentence):
+    return [lang.word2index[word] for word in sentence.split(' ')]
+
+def tensorFromSentence(lang, sentence):
+    indexes = indexesFromSentence(lang, sentence)
+    indexes.append(EOS_token)
+    return torch.tensor(indexes, dtype=torch.long, device=device).view(-1, 1)
+
+def tensorsFromPair(src_lang, trg_lang, pair):
+    src_tensor = tensorFromSentence(src_lang, pair[0])
+    trg_tensor = tensorFromSentence(trg_lang, pair[1])
+    return (src_tensor, trg_tensor)
+
+def gen(N):
+    for i in range(N):
+        yield i
