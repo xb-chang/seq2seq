@@ -85,7 +85,8 @@ train_data, valid_data, test_data = Multi30k.splits(exts = ('.de', '.en'),
 SRC.build_vocab(train_data, min_freq = 2)
 TRG.build_vocab(train_data, min_freq = 2)
 
-BATCH_SIZE = 128
+# BATCH_SIZE = 128
+BATCH_SIZE = 32
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -146,7 +147,8 @@ def epoch_time(start_time, end_time):
     elapsed_secs = int(elapsed_time - (elapsed_mins * 60))
     return elapsed_mins, elapsed_secs
 
-N_EPOCHS = 10
+# N_EPOCHS = 10
+N_EPOCHS = 3
 CLIP = 1
 
 best_valid_loss = float('inf')

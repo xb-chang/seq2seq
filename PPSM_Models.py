@@ -62,9 +62,9 @@ class Encoder(nn.Module):
         #need to explicitly put lengths on cpu!
         # TRICK: important utils;
         packed_embedded = nn.utils.rnn.pack_padded_sequence(embedded, src_len.to('cpu'))
-        # packed_embedded & embedded on GPU or not?
+        # packed_embedded & embedded on GPU or not? BOTH on GPU;
         # check the tensor shape after packed
-        pdb.set_trace()
+        # pdb.set_trace()
 
         packed_outputs, hidden = self.rnn(packed_embedded)
         #packed_outputs is a packed sequence containing all hidden states
@@ -76,7 +76,7 @@ class Encoder(nn.Module):
             
         #outputs = [src len, batch size, hid dim * num directions]
         #hidden = [n layers * num directions, batch size, hid dim]
-        pdb.set_trace()
+        # pdb.set_trace()
         
         #hidden is stacked [forward_1, backward_1, forward_2, backward_2, ...]
         #outputs are always from the last layer

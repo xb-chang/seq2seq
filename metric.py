@@ -21,16 +21,19 @@ Example:
 >>> bleu_score(candidate_corpus, references_corpus)
     0.8408964276313782
 
-Try out: Case sensative
+Try out: Case sensative (Yes)
 >>> candidate_corpus = [ ['My', 'full', 'pytorch', 'test'], 
                          ['Another', 'Sentence']
                         ]
->>> references_corpus = [ [ ['my', 'Full', 'Pytorch', 'test'], ['completely', 'different'] ], 
+>>> references_corpus = [ [ ['my', 'full', 'pytorch', 'test'], ['completely', 'different'] ], 
                           [ ['no', 'match'] ]
                         ]
 >>> bleu_score(candidate_corpus, references_corpus)
 
-Try out: Indexes
+>>> candidate_corpus = [ ['My', 'full', 'pytorch', 'test'] ]
+>>> references_corpus = [ [ ['My', 'full', 'pytorch', 'test'] ] ]
+
+Try out: Indexes (Yes!)
 >>> from torchtext.data.metrics import bleu_score
 
 >>> candidate_corpus = [ ['1', '2', '3', '4'], 
@@ -40,7 +43,9 @@ Try out: Indexes
                           [ ['9', '10'] ]
                         ]
 >>> bleu_score(candidate_corpus, references_corpus)
+0.8408964276313782
 
+Cannot be int index list.
 >>> candidate_corpus = [ [1, 2, 3, 4], 
                          [5, 6]
                         ]
@@ -48,6 +53,7 @@ Try out: Indexes
                           [ [9, 10] ]
                         ]
 >>> bleu_score(candidate_corpus, references_corpus)
+Error: AttributeError: 'int' object has no attribute 'split'
 
 By default:
 max_n=4, weights=[0.25, 0.25, 0.25, 0.25].
