@@ -5,6 +5,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import spacy
+
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
 import random
 
 import pdb
@@ -210,7 +215,8 @@ class Decoder(nn.Module):
 
 
 '''
-Seq2seq: with a few changes for packed padded sequences, masking and inference.
+Seq2seq: full model;
+with a few changes for packed padded sequences, masking and inference.
 Trick: got the the source sentence length & 'create_mask' function is here.
 The attention at each time-step is stored in the 'attentions'.
 '''
@@ -225,6 +231,7 @@ class Seq2Seq(nn.Module):
         self.device = device
     
     def create_mask(self, src):
+        # mask out the padded tokens.
         mask = (src != self.src_pad_idx).permute(1, 0)
         return mask
 
@@ -346,6 +353,87 @@ def evaluate(model, iterator, criterion):
         
     return epoch_loss / len(iterator)
 
+
 '''
-Inference
+Inference: Use the trained model to generate translations.
+'translate_sentence' is the main inference function.
+the model here is 'seq2seq' class.
 '''
+def translate_sentence(sentence, src_field, trg_field, model, device, max_len = 50):
+    # evaluation mode
+    model.eval()
+
+    # tokenize: (dividing) the string into words.
+    if isinstance(sentence, str):
+        nlp = spacy.load('de')
+        tokens = [token.text.lower() for token in nlp(sentence)]
+    else:
+        tokens = [token.lower() for token in sentence]
+    
+    # add <sos> & <eos> tokens
+    tokens = [src_field.init_token] + tokens + [src_field.eos_token]
+    # tokens 2 indexes
+    src_indexes = [src_field.vocab.stoi[token] for token in tokens]
+    # idx tensor
+    src_tensor = torch.LongTensor(src_indexes).unsqueeze(1).to(device)
+    # input word length
+    src_len = torch.LongTensor([len(src_indexes)])
+
+    # encoding the src features and hidden states
+    with torch.no_grad():
+        encoder_outputs, hidden = model.encoder(src_tensor, src_len)
+    
+    # mask out the padded tokens.
+    mask = model.create_mask(src_tensor)
+
+    # result buffers
+    trg_indexes = [trg_field.vocab.stoi[trg_field.init_token]]
+    attentions = torch.zeros(max_len, 1, len(src_indexes)).to(device)
+
+    for i in range(max_len):
+        # Auto-regressive
+        trg_tensor = torch.LongTensor([trg_indexes[-1]]).to(device)
+                
+        with torch.no_grad():
+            output, hidden, attention = model.decoder(trg_tensor, hidden, encoder_outputs, mask)
+
+        attentions[i] = attention
+        
+        # index
+        pred_token = output.argmax(1).item()
+        trg_indexes.append(pred_token)
+
+        # reach <eos>, the generation process ends.
+        # .stoi: word to index; 
+        if pred_token == trg_field.vocab.stoi[trg_field.eos_token]:
+            break
+    
+    # .itos: index to word;
+    trg_tokens = [trg_field.vocab.itos[i] for i in trg_indexes]
+    
+    # returns the target words list & attentions list
+    return trg_tokens[1:], attentions[:len(trg_tokens)-1]
+
+
+# show the attention matrix across source and target
+def display_attention(sentence, translation, attention):
+    
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    
+    attention = attention.squeeze(1).cpu().detach().numpy()
+    
+    cax = ax.matshow(attention, cmap='bone')
+    ax.tick_params(labelsize=15)
+    
+    x_ticks = [''] + ['<sos>'] + [t.lower() for t in sentence] + ['<eos>']
+    y_ticks = [''] + translation
+
+    ax.set_xticklabels(x_ticks, rotation=45)
+    ax.set_yticklabels(y_ticks)
+
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+
+    plt.show()
+    plt.close()

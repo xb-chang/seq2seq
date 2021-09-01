@@ -26,6 +26,8 @@ from torchtext.legacy.data import Field, BucketIterator
 
 from PPSM_Models import Encoder,Attention,Decoder,Seq2Seq
 from PPSM_Models import train, evaluate
+from PPSM_Models import translate_sentence, display_attention
+from metric import calculate_bleu
 
 import spacy
 import numpy as np
@@ -172,3 +174,30 @@ for epoch in range(N_EPOCHS):
 model.load_state_dict(torch.load('models/tut4-model.pt'))
 test_loss = evaluate(model, test_iterator, criterion)
 print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
+
+# Inference and display attention.
+def infer_disp(example_idx):
+    src = vars(train_data.examples[example_idx])['src']
+    trg = vars(train_data.examples[example_idx])['trg']
+
+    print(f'src = {src}')
+    print(f'trg = {trg}')
+
+    # inference
+    translation, attention = translate_sentence(src, SRC, TRG, model, device)
+    print(f'predicted trg = {translation}')
+
+    display_attention(src, translation, attention)
+
+example_idx = 12
+infer_disp(example_idx)
+
+example_idx = 14
+infer_disp(example_idx)
+
+example_idx = 18
+infer_disp(example_idx)
+
+bleu_score = calculate_bleu(test_data, SRC, TRG, model, device)
+
+print(f'BLEU score = {bleu_score*100:.2f}')
